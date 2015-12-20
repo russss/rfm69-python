@@ -1,8 +1,7 @@
 from __future__ import division, absolute_import, print_function, unicode_literals
 from collections import OrderedDict
-from constants import Register, RF
-from register_value import RegisterValue
-from enum import Enum
+from .constants import Register, RF
+from .register_value import RegisterValue
 
 
 class OpMode(RegisterValue):

@@ -6,8 +6,8 @@ import logging
 import RPi.GPIO as GPIO
 import spidev
 
-from configuration import IRQFlags1, IRQFlags2, OpMode
-from constants import Register
+from .configuration import IRQFlags1, IRQFlags2, OpMode
+from .constants import Register
 
 
 class RadioError(Exception):
