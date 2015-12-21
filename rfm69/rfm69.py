@@ -64,25 +64,35 @@ class RFM69(object):
 
         self.log.debug("%s configuration registers written.", count)
 
-    def wait_for_packet(self):
+    def wait_for_packet(self, timeout=None):
+        start = time()
         self.packet_ready_event = Event()
         GPIO.add_event_detect(self.dio0_pin, GPIO.RISING, callback=self.payload_ready_interrupt)
         self.set_mode(OpMode.RX)
+        packet_received = False
         while True:
             irqflags = self.read_register(IRQFlags1)
             if not irqflags.mode_ready:
                 self.log.error("Module out of ready state: %s", irqflags)
-                return
-            if self.packet_ready_event.wait(1):
                 break
-        rssi = self.get_rssi()
-        data_length = self.spi_read(Register.FIFO)
-        data = self.spi_burst_read(Register.FIFO, data_length)
+            if timeout is not None and time() - start > timeout:
+                break
+            if self.packet_ready_event.wait(1):
+                packet_received = True
+                break
 
-        self.log.info("Received message: %s, RSSI: %s", data, rssi)
         GPIO.remove_event_detect(self.dio0_pin)
         self.set_mode(OpMode.Standby)
-        return bytearray(data)
+
+        if packet_received:
+            rssi = self.get_rssi()
+            data_length = self.spi_read(Register.FIFO)
+            data = self.spi_burst_read(Register.FIFO, data_length)
+
+            self.log.info("Received message: %s, RSSI: %s", data, rssi)
+            return (bytearray(data), rssi)
+        else:
+            return None
 
     def send_packet(self, data, preamble=None):
         data = bytearray(data)
