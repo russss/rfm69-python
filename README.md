@@ -11,3 +11,9 @@ Written for use with the [ukhas.net](http://ukhas.net) project.
 * [Semtech SX1231](https://www.semtech.com/images/datasheet/sx1231.pdf)
     (the underlying RF chip, which much of the RFM69 datasheet is lifted
     from)
+
+## Prior Art
+* [UKHASNetPiGateway](https://github.com/dbrooke/UKHASNetPiGateway) (in
+  C/Wiring)
+* [ukhasnet LPC810 node](https://github.com/jamescoxon/LPC810)
+* [Python code for the beaglebone black](https://github.com/wcalvert/rfm69-python)
