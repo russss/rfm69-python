@@ -87,6 +87,15 @@ class PacketConfig1(RegisterValue):
         self.address_filtering = 0b00
 
 
+class Temperature1(RegisterValue):
+    REGISTER = 0x4E
+    FORMAT = [(False, 4), ('start', 1), ('running', 1), (0b01, 2)]
+
+    def __init__(self):
+        self.start = False
+        self.running = False
+
+
 class RFM69Configuration(object):
     """ An object to hold to represent the configuration of the RFM69. There's quite a bit of it.
 

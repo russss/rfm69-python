@@ -6,7 +6,7 @@ import logging
 import RPi.GPIO as GPIO
 import spidev
 
-from .configuration import IRQFlags1, IRQFlags2, OpMode
+from .configuration import IRQFlags1, IRQFlags2, OpMode, Temperature1
 from .constants import Register
 
 
@@ -124,6 +124,16 @@ class RFM69(object):
 
     def get_rssi(self):
         return -(self.spi_read(Register.RSSIVALUE) / 2)
+
+    def read_temperature(self):
+        self.set_mode(OpMode.Standby)
+        reg = Temperature1()
+        reg.start = True
+        self.write_register(reg)
+        while self.read_register(Temperature1).running:
+            sleep(0.005)
+
+        return 168 - self.spi_read(Register.TEMP2)
 
     def read_register(self, register_cls):
         resp = self.spi_read(register_cls.REGISTER)
