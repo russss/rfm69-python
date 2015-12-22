@@ -6,8 +6,8 @@ import logging
 import RPi.GPIO as GPIO
 import spidev
 
-from .configuration import IRQFlags1, IRQFlags2, OpMode, Temperature1
-from .constants import Register
+from .configuration import IRQFlags1, IRQFlags2, OpMode, Temperature1, RSSIConfig
+from .constants import Register, RF
 
 
 class RadioError(Exception):
@@ -75,6 +75,10 @@ class RFM69(object):
             if not irqflags.mode_ready:
                 self.log.error("Module out of ready state: %s", irqflags)
                 break
+            if irqflags.rx_ready == True and irqflags.timeout == True:
+                self.log.info("Restarting Rx due to timeout")
+                self.spi_write(Register.PACKETCONFIG2,
+                               self.spi_read(Register.PACKETCONFIG2) | RF.PACKET2_RXRESTART)
             if timeout is not None and time() - start > timeout:
                 break
             if self.packet_ready_event.wait(1):
@@ -134,6 +138,36 @@ class RFM69(object):
 
     def get_rssi(self):
         return -(self.spi_read(Register.RSSIVALUE) / 2)
+
+    def calibrate_rssi_threshold(self, samples=10):
+        """ Try and estimate the local noise floor and set a good RSSI threshold. The RFM
+            appears to work best when it has a good RSSI threshold set.
+
+            We do this by taking n samples of the measured RSSI, 200ms apart, and discarding
+            the highest (noisiest, most powerful) 80% of these.
+        """
+        old_thresh = self.spi_read(Register.RSSITHRESH)
+
+        # Set the threshold to the lowest possible value and start receiving
+        self.spi_write(Register.RSSITHRESH, 0xff)
+        self.set_mode(OpMode.RX)
+
+        while not self.read_register(RSSIConfig).rssi_done:
+            sleep(0.001)
+
+        values = []
+        for i in range(0, samples):
+            values.append(self.spi_read(Register.RSSIVALUE))
+            sleep(0.2)
+
+        values = sorted(values)
+        new_thresh = values[int(samples * 0.8)] - 6
+
+        self.set_mode(OpMode.Standby)
+
+        if old_thresh != new_thresh:
+            self.log.info("Changing RSSI threshold %sdB -> %sdB", -old_thresh/2, -new_thresh/2)
+        self.spi_write(Register.RSSITHRESH, new_thresh)
 
     def read_temperature(self):
         self.set_mode(OpMode.Standby)
