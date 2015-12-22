@@ -15,11 +15,18 @@ class RadioError(Exception):
 
 
 class RFM69(object):
-    def __init__(self, reset_pin=None, dio0_pin=None, dio4_pin=None, spi_channel=None, config=None):
+    """ Interface for the RFM69 series of radio modules. """
+    def __init__(self, reset_pin=None, dio0_pin=None, spi_channel=None, config=None):
+        """ Initialise the object and configure the receiver.
+
+            reset_pin -- the GPIO pin number which is attached to the reset pin of the RFM69
+            dio0_pin  -- the GPIO pin number which is attached to the DIO0 pin of the RFM69
+            spi_channel -- the SPI channel used by the RFM69
+            config    -- an instance of `RFM69Configuration`
+        """
         self.log = logging.getLogger(__name__)
         self.reset_pin = reset_pin
         self.dio0_pin = dio0_pin
-        self.dio4_pin = dio4_pin
         self.spi_channel = spi_channel
         self.config = config
         self.init_gpio()
@@ -32,7 +39,6 @@ class RFM69(object):
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
         GPIO.setup(self.dio0_pin, GPIO.IN)
-        GPIO.setup(self.dio4_pin, GPIO.IN)
 
     def init_spi(self):
         self.spi = spidev.SpiDev()
@@ -56,6 +62,9 @@ class RFM69(object):
         self.packet_ready_event.set()
 
     def write_config(self):
+        """ Write the full configuration to the module. This is called on
+            initialisation.
+        """
         self.log.debug("Writing configuration...")
         count = 0
         for register, value in self.config.get_registers().iteritems():
@@ -65,6 +74,12 @@ class RFM69(object):
         self.log.debug("%s configuration registers written.", count)
 
     def wait_for_packet(self, timeout=None):
+        """ Put the module in receive mode, and block until we receive a packet.
+            Returns a tuple of (packet, rssi), or None if there was a timeout
+
+            timeout -- the amount of time to wait for before returning if no
+                       packets were received.
+        """
         start = time()
         self.packet_ready_event = Event()
         GPIO.add_event_detect(self.dio0_pin, GPIO.RISING, callback=self.payload_ready_interrupt)
@@ -76,7 +91,10 @@ class RFM69(object):
                 self.log.error("Module out of ready state: %s", irqflags)
                 break
             if irqflags.rx_ready == True and irqflags.timeout == True:
-                self.log.info("Restarting Rx due to timeout")
+                # Once the RFM's receiver has been started by a signal over the RSSI
+                # threshold, it will continue running (possibly with stale AGC/AFC
+                # parameters). Detect this and reset the receiver.
+                self.log.info("Restarting Rx on timeout")
                 self.spi_write(Register.PACKETCONFIG2,
                                self.spi_read(Register.PACKETCONFIG2) | RF.PACKET2_RXRESTART)
             if timeout is not None and time() - start > timeout:
@@ -86,7 +104,7 @@ class RFM69(object):
                 break
 
         GPIO.remove_event_detect(self.dio0_pin)
-        self.set_mode(OpMode.Standby)
+        self.set_mode(OpMode.Standby, wait=False)
 
         if packet_received:
             rssi = self.get_rssi()
@@ -99,6 +117,18 @@ class RFM69(object):
             return None
 
     def send_packet(self, data, preamble=None):
+        """ Transmit a packet. If you've configured the RFM to use variable-length
+            packets, this function will add a length byte for you.
+
+            The radio will be returned to the standby state.
+
+            data -- this should be a bytearray. If it isn't, we'll try and convert it,
+                    but you might end up with encoding issues, especially if you use
+                    unicode strings.
+            preamble -- how long, in seconds, to send the preamble bytes for. Longer
+                    preambles may result in more reliable decoding, at the expense of
+                    spectrum use.
+        """
         data = bytearray(data)
 
         if self.config.packet_config_1.variable_length:
@@ -106,7 +136,7 @@ class RFM69(object):
 
         self.log.debug("Initialising Tx...")
         start = time()
-        self.set_mode(OpMode.TX)
+        self.set_mode(OpMode.TX, wait=False)
 
         while not self.read_register(IRQFlags1).tx_ready:
             sleep(0.005)
@@ -124,11 +154,16 @@ class RFM69(object):
         self.set_mode(OpMode.Standby)
         self.log.debug("Packet (%r) sent in %.3fs", data, time() - start)
 
-    def set_mode(self, mode):
+    def set_mode(self, mode, wait=True):
+        """ Change the mode of the radio. Mode values can be found in the OpMode class.
+
+            wait -- wait for the mode_ready interrupt flag to be set before returning.
+                    Not needed if you're going to be checking for another status flag.
+        """
         start = time()
         self.config.opmode.mode = mode
         self.write_register(self.config.opmode)
-        while True:
+        while wait:
             irqflags = self.read_register(IRQFlags1)
             if irqflags.mode_ready:
                 duration = time() - start
@@ -137,6 +172,7 @@ class RFM69(object):
             sleep(0.005)
 
     def get_rssi(self):
+        """ Get the current RSSI in dBm. """
         return -(self.spi_read(Register.RSSIVALUE) / 2)
 
     def calibrate_rssi_threshold(self, samples=10):
@@ -150,7 +186,7 @@ class RFM69(object):
 
         # Set the threshold to the lowest possible value and start receiving
         self.spi_write(Register.RSSITHRESH, 0xff)
-        self.set_mode(OpMode.RX)
+        self.set_mode(OpMode.RX, wait=False)
 
         while not self.read_register(RSSIConfig).rssi_done:
             sleep(0.001)
@@ -170,6 +206,9 @@ class RFM69(object):
         self.spi_write(Register.RSSITHRESH, new_thresh)
 
     def read_temperature(self):
+        """ Read the temperature from the RFM's built-in sensor.
+            This will switch the module to standby mode.
+        """
         self.set_mode(OpMode.Standby)
         reg = Temperature1()
         reg.start = True

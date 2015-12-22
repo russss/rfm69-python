@@ -37,6 +37,13 @@ class DataModulation(RegisterValue):
         self.modulation_type = self.TypeFSK
         self.modulation_shaping = 0b00
 
+class RSSIConfig(RegisterValue):
+    REGISTER = 0x23
+    FORMAT = [(False, 6), ('rssi_done', 1), ('rssi_start', 1)]
+
+    def __init__(self):
+        self.rssi_done = True
+        self.rssi_start = False
 
 
 class IRQFlags1(RegisterValue):
