@@ -29,6 +29,7 @@ class RFM69(object):
         self.dio0_pin = dio0_pin
         self.spi_channel = spi_channel
         self.config = config
+        self.rx_restarts = 0
         self.init_gpio()
         self.init_spi()
         self.reset()
@@ -82,6 +83,7 @@ class RFM69(object):
         """
         start = time()
         self.packet_ready_event = Event()
+        self.rx_restarts = 0
         GPIO.add_event_detect(self.dio0_pin, GPIO.RISING, callback=self.payload_ready_interrupt)
         self.set_mode(OpMode.RX)
         packet_received = False
@@ -97,6 +99,7 @@ class RFM69(object):
                 self.log.info("Restarting Rx on timeout")
                 self.spi_write(Register.PACKETCONFIG2,
                                self.spi_read(Register.PACKETCONFIG2) | RF.PACKET2_RXRESTART)
+                self.rx_restarts += 1
             if timeout is not None and time() - start > timeout:
                 break
             if self.packet_ready_event.wait(1):
