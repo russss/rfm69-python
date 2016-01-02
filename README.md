@@ -6,6 +6,9 @@ similar hardware (such as Beaglebone Black) with appropriate tweaks.
 
 Written for use with the [ukhas.net](http://ukhas.net) project.
 
+## Requirements
+* Only currently tested on python 2.7, may also work on 3.4+
+
 ## Datasheets
 * [RFM69W](http://www.hoperf.com/upload/rf/RFM69W-V1.3.pdf)
 * [Semtech SX1231](https://www.semtech.com/images/datasheet/sx1231.pdf)
