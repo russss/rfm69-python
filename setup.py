@@ -10,4 +10,9 @@ setup(name="rfm69",
             license="BSD",
             url="http://github.com/russss/rfm69-python",
             packages=find_packages(),
+            install_requires=[
+                'enum == 0.4.6',
+                'RPi.GPIO == 0.6.0a3',
+                'spidev == 3.0'
+            ]
             )
