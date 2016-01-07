@@ -96,7 +96,10 @@ class RFM69(object):
                 # Once the RFM's receiver has been started by a signal over the RSSI
                 # threshold, it will continue running (possibly with stale AGC/AFC
                 # parameters). Detect this and reset the receiver.
-                self.log.info("Restarting Rx on timeout")
+                irqflags2 = self.read_register(IRQFlags2)
+                self.log.info("Restarting Rx on timeout. RSSI: %s, sync: %s, fifo_not_empty: %s, crc: %s",
+                              irqflags.rssi, irqflags.sync_address_match, irqflags2.fifo_not_empty,
+                              irqflags2.crc_ok)
                 self.spi_write(Register.PACKETCONFIG2,
                                self.spi_read(Register.PACKETCONFIG2) | RF.PACKET2_RXRESTART)
                 self.rx_restarts += 1
