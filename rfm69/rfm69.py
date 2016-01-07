@@ -173,6 +173,11 @@ class RFM69(object):
                 self.log.debug("Mode changed to %s in %.3fs", mode, duration)
                 return
             sleep(0.005)
+            if time() - start > 5:
+                self.log.warn("Mode not set after 5 seconds, resetting module")
+                self.reset()
+                self.write_register(self.config.opmode)
+                start = time()
 
     def get_rssi(self):
         """ Get the current RSSI in dBm. """
