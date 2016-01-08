@@ -12,7 +12,7 @@ setup(name="rfm69",
             packages=find_packages(),
             install_requires=[
                 'enum == 0.4.6',
-                'RPi.GPIO == 0.6.0a3',
+                'RPi.GPIO >= 0.6.0',
                 'spidev == 3.0'
             ]
             )
