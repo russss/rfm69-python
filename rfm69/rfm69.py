@@ -97,7 +97,7 @@ class RFM69(object):
                 # threshold, it will continue running (possibly with stale AGC/AFC
                 # parameters). Detect this and reset the receiver.
                 irqflags2 = self.read_register(IRQFlags2)
-                self.log.info("Restarting Rx on timeout. RSSI: %s, sync: %s, fifo_not_empty: %s, crc: %s",
+                self.log.debug("Restarting Rx on timeout. RSSI: %s, sync: %s, fifo_not_empty: %s, crc: %s",
                               irqflags.rssi, irqflags.sync_address_match, irqflags2.fifo_not_empty,
                               irqflags2.crc_ok)
                 self.spi_write(Register.PACKETCONFIG2,
