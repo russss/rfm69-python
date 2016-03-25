@@ -14,6 +14,23 @@ class RadioError(Exception):
     pass
 
 
+def wait_for(condition, timeout=5, check_time=0.005):
+    """ Wait for a radio condition to become true within a timeout.
+        If this doesn't happen, raise a RadioError.
+
+        Returns the amount of time """
+    start = time()
+    iter_count = 0
+    while not condition():
+        # We're spinning quite fast here, so only get the current time
+        # every 20 iterations
+        if iter_count % 20 == 0 and (time() - start) > timeout:
+            raise RadioError("Condition didn't become true within %s seconds" % timeout)
+        sleep(check_time)
+        iter_count += 1
+    return time() - start
+
+
 class RFM69(object):
     """ Interface for the RFM69 series of radio modules. """
     def __init__(self, reset_pin=None, dio0_pin=None, spi_channel=None, config=None):
@@ -143,9 +160,7 @@ class RFM69(object):
         self.log.debug("Initialising Tx...")
         start = time()
         self.set_mode(OpMode.TX, wait=False)
-
-        while not self.read_register(IRQFlags1).tx_ready:
-            sleep(0.005)
+        wait_for(lambda: self.read_register(IRQFlags1).tx_ready)
 
         self.log.debug("In Tx mode (took %.3fs)", time() - start)
 
@@ -153,9 +168,7 @@ class RFM69(object):
             sleep(preamble)
 
         self.write_fifo(data)
-
-        while not self.read_register(IRQFlags2).packet_sent:
-            sleep(0.005)
+        wait_for(lambda: self.read_register(IRQFlags2).packet_sent)
 
         self.set_mode(OpMode.Standby)
         self.log.debug("Packet (%r) sent in %.3fs", data, time() - start)
@@ -199,8 +212,7 @@ class RFM69(object):
         self.spi_write(Register.RSSITHRESH, 0xff)
         self.set_mode(OpMode.RX, wait=False)
 
-        while not self.read_register(RSSIConfig).rssi_done:
-            sleep(0.001)
+        wait_for(lambda: self.read_register(RSSIConfig).rssi_done)
 
         values = []
         for i in range(0, samples):
@@ -224,8 +236,7 @@ class RFM69(object):
         reg = Temperature1()
         reg.start = True
         self.write_register(reg)
-        while self.read_register(Temperature1).running:
-            sleep(0.005)
+        wait_for(lambda: not self.read_register(Temperature1).running)
 
         return 168 - self.spi_read(Register.TEMP2)
 
