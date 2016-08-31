@@ -109,14 +109,14 @@ class RFM69(object):
             if not irqflags.mode_ready:
                 self.log.error("Module out of ready state: %s", irqflags)
                 break
-            if irqflags.rx_ready == True and irqflags.timeout == True:
+            if irqflags.rx_ready and irqflags.timeout:
                 # Once the RFM's receiver has been started by a signal over the RSSI
                 # threshold, it will continue running (possibly with stale AGC/AFC
                 # parameters). Detect this and reset the receiver.
                 irqflags2 = self.read_register(IRQFlags2)
                 self.log.debug("Restarting Rx on timeout. RSSI: %s, sync: %s, fifo_not_empty: %s, crc: %s",
-                              irqflags.rssi, irqflags.sync_address_match, irqflags2.fifo_not_empty,
-                              irqflags2.crc_ok)
+                               irqflags.rssi, irqflags.sync_address_match, irqflags2.fifo_not_empty,
+                               irqflags2.crc_ok)
                 self.spi_write(Register.PACKETCONFIG2,
                                self.spi_read(Register.PACKETCONFIG2) | RF.PACKET2_RXRESTART)
                 self.rx_restarts += 1
@@ -225,7 +225,7 @@ class RFM69(object):
         self.set_mode(OpMode.Standby)
 
         if old_thresh != new_thresh:
-            self.log.info("Changing RSSI threshold %sdB -> %sdB", -old_thresh/2, -new_thresh/2)
+            self.log.info("Changing RSSI threshold %sdB -> %sdB", -old_thresh / 2, -new_thresh / 2)
         self.spi_write(Register.RSSITHRESH, new_thresh)
 
     def read_temperature(self):
