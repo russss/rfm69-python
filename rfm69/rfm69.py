@@ -199,6 +199,10 @@ class RFM69(object):
         """ Get the current RSSI in dBm. """
         return -(self.spi_read(Register.RSSIVALUE) / 2)
 
+    def get_rssi_threshold(self):
+        """ Get the current RSSI threshold in dBm. """
+        return -(self.spi_read(Register.RSSITHRESH) / 2)
+
     def set_rssi_threshold(self, value):
         """ Set the RSSI threshold in dBm """
         if not -127 < value < 0:
