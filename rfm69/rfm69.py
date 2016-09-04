@@ -199,6 +199,12 @@ class RFM69(object):
         """ Get the current RSSI in dBm. """
         return -(self.spi_read(Register.RSSIVALUE) / 2)
 
+    def set_rssi_threshold(self, value):
+        """ Set the RSSI threshold in dBm """
+        if not -127 < value < 0:
+            raise ValueError("RSSI threshold out of range")
+        self.spi_write(Register.RSSITHRESH, -int(value * 2))
+
     def calibrate_rssi_threshold(self, samples=10):
         """ Try and estimate the local noise floor and set a good RSSI threshold. The RFM
             appears to work best when it has a good RSSI threshold set.
